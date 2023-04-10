@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter_test/flutter_test.dart';
 //import 'package:test/test.dart';
 import 'package:one_liner_entry/app_constants.dart';
@@ -11,9 +9,13 @@ DateTime _now = DateTime.now();
 String desc = "Turn off oven";
 String note = "chicken cooking";
 int minutes = 45;
-int days = 20;
+/// A numeric value for days
+int _days = 20;
 int weeks = 3;
-int years = 1;
+int _years = 1;
+
+String yearsVal = '';
+
 Duration defaultAllDayEventDuration = const Duration(hours: 24); 
 List noteValues = [ note, ''];
 List timeUnitPrefixValue = [ '', 'in '];
@@ -78,10 +80,14 @@ void performTests( String desc, int? minutesInFuture, String? note , bool isAllD
   }
 
   if  (distanceFromNow != null ) {
-    int _hours = isAllDay? 0 : _now.hour;
-    int _minutes = isAllDay? 0 : _now.minute ;
-    DateTime _localNow = DateTime( _now.year, _now.month, _now.day, _hours, _minutes);
-    expect( (reminder.getStartDate().difference( _localNow )).compareTo( distanceFromNow ) == 0 , true);
+    int hours = isAllDay? 0 : _now.hour;
+    int minutes = isAllDay? 0 : _now.minute ;
+    DateTime localNow = DateTime( _now.year, _now.month, _now.day, hours, minutes);
+    int leapDays = 0; 
+    if ( yearsVal.contains('1 year') ){
+      leapDays = reminder.extraDaysForFinalYear(1);
+    }
+    expect( (reminder.getStartDate().difference( localNow )).compareTo( distanceFromNow ) - leapDays  == 0 , true);
   }
 
   if  (diffStartWithEnd != null &&  !isAllDay ) {
@@ -528,9 +534,9 @@ void main() {
     for (int j = 0; j< timeUnitPrefixValue.length; j++ ){
       for (int i = 0; i< noteValues.length; i++ ){
         reminder = ReminderCreator();
-        reminder.process( '$desc ${timeUnitPrefixValue[j]} ${days.toString()} days ${noteValues[i]}' );
+        reminder.process( '$desc ${timeUnitPrefixValue[j]} ${_days.toString()} days ${noteValues[i]}' );
 
-        performTests( desc, null, noteValues[i], true, true , Duration(days: days), defaultAllDayEventDuration );
+        performTests( desc, null, noteValues[i], true, true , Duration(days: _days), defaultAllDayEventDuration );
       }
     }
 
@@ -579,17 +585,21 @@ void main() {
   } );
 
   test('Reminder creator - multiple parameters - unit year - prefix in ... ', () {
+    yearsVal = '';
     
     for (int j = 0; j< timeUnitPrefixValue.length; j++ ){
       reminder = ReminderCreator();
+      yearsVal = '$_years year';
 
-      reminder.process('$desc ${timeUnitPrefixValue[j]} ${years.toString()} year $note');
-      performTests( desc, null, note, true, true , Duration( days: 365 ),  defEventDur );
+      reminder.process('$desc ${timeUnitPrefixValue[j]} ${_years.toString()} year $note');
+      performTests( desc, null, note, true, true , const Duration( days: 365 ),  defEventDur );
     }
 
     reminder = ReminderCreator();
-    reminder.process('$desc ${years.toString()} year');
-    performTests( desc, null, null, true, true , Duration( days: 365 ),  defEventDur );
+    reminder.process('$desc ${_years.toString()} year');
+    performTests( desc, null, null, true, true , const Duration( days: 365 ),  defEventDur );
+
+    yearsVal = '';
 
   } );
 
@@ -729,10 +739,10 @@ void main() {
       }
     }
 
-    List _years = ['2023', '23'];
-    for (int i = 0; i < _years.length; i++){
+    List years = ['2023', '23'];
+    for (int i = 0; i < years.length; i++){
       reminder = ReminderCreator();
-      reminder.process('Test me 10//15/${_years[i]}');
+      reminder.process('Test me 10//15/${years[i]}');
       expect(reminder.getStartDate().day == 15, true);
       expect(reminder.getStartDate().month == 10, true);
       expect(reminder.getStartDate().year == 2023, true);
@@ -776,10 +786,10 @@ void main() {
       }
     } 
 
-    List _years = ['2023', '23'];
-    for (int i = 0; i < _years.length; i++){
+    List years0 = ['2023', '23'];
+    for (int i = 0; i < years0.length; i++){
       reminder = ReminderCreator();
-      reminder.process('Test me 16/11/${_years[i]}');
+      reminder.process('Test me 16/11/${years0[i]}');
       expect(reminder.getStartDate().day == 16, true);
       expect(reminder.getStartDate().month == 11, true);
       expect(reminder.getStartDate().year == 2023, true);
@@ -1196,6 +1206,24 @@ void main() {
     performTests( desc, null, note, false, true , null,  Duration(minutes: 45) );
 
     expect(reminder.getSuppliedTime24h() , '20:15');
+
+  } );
+
+// https://github.com/mickthegrit/oneliner-entry/issues/2 
+// Issue 2 Meet Bob 4/9/23 at 900 phone 697 344 821
+  test('Reminder creator - numeric values in notes ', () {
+
+    String suppliedNote = 'phone 697 344 821 12:36am at 6pm 13:30 2 hours at 5 next Mon 10/3 5//3 20/2/2099 10//23/2099';
+    reminder = ReminderCreator();
+
+    reminder.process( 'Meet Bob 4/9/99 at 900 $suppliedNote');
+    performTests( 'Meet Bob', null, suppliedNote, false, true , null, null );
+
+    expect(reminder.getSuppliedTime24h() , '09:00');
+    assert(reminder.getStartDate().day == 4, true);
+    assert(reminder.getStartDate().month == 9, true);
+    assert(reminder.getStartDate().year == 2099, true);
+
 
   } );
 

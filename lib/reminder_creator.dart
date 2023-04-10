@@ -41,8 +41,12 @@ class ReminderCreator{
 
   List<String> timeIdentifiersUS = [_am, _pm];
 
-  /// For clock time or value
-  bool hasTimeBeenIdentified = false;
+  /// For start clock time or value
+  bool hasStartTimeBeenIdentified = false;
+  //hasTimeBeenIdentified
+
+  /// For start date 
+  bool hasStartDateBeenIdentified = false;
 
   /// For days relevant to today: today, yesterday, Monday etc. 
   int suppliedRelevantDayIndex = -1; 
@@ -107,6 +111,32 @@ class ReminderCreator{
   /// If only date has been specified 
   bool isAllDay(){
     return isAllDayEntry;
+  }
+
+  bool isLeapYear(int year){
+
+    return (year % 4 == 0 && year % 100 != 0 ) || year % 400 == 0 ;
+
+  }
+
+  /// Leap Years have one extra day. When a future date is calculated, then this need to be kept in mind 
+  int extraDaysForFinalYear(int yearsInFuture){
+    int leapDays = 0;
+    DateTime now = DateTime.now();
+    int currentYear = now.year;
+  
+    // add to leap Days this year's day if current month is less than March and the day is max Feb 28th 
+    if (  ( (now.day <32 && now.month == 1 ) || ( now.day < 29 && now.month == 2 ) ) && isLeapYear( currentYear ) ) { 
+      leapDays = leapDays + 1;
+    } 
+
+    for ( int i = 0; i < yearsInFuture; i++){
+      if ( isLeapYear( currentYear + i + 1) ) {
+        leapDays = leapDays + 1;
+      }
+    } 
+    return leapDays;
+
   }
 
   /// Returns HH:MM
@@ -223,14 +253,15 @@ class ReminderCreator{
         _yearToUse++; 
       }
 
-      if ( hasTimeBeenIdentified ) { 
+      if ( hasStartTimeBeenIdentified ) { 
         _timeSupplied = DateTime( _yearToUse, _specifiedMonth, 1, _timeSupplied.hour, _timeSupplied.minute ); 
       }
       else {
         _timeSupplied = DateTime( _yearToUse, _specifiedMonth, 1 ); 
         isAllDayEntry = true;
-        hasTimeBeenIdentified = true;
       }
+      hasStartDateBeenIdentified = true;
+
       return; 
     }
     else if ( <String>['NEXT', 'FOLLOWING'].contains( _tokenUC ) ){
@@ -240,7 +271,7 @@ class ReminderCreator{
         int _targetMonth = _tempNow.month == 12 ? 1 : _tempNow.month + 1; 
         int _targetYear = _tempNow.month == 12 ? _tempNow.year + 1 : _tempNow.year ; 
 
-        if ( hasTimeBeenIdentified) { 
+        if ( hasStartTimeBeenIdentified ) { 
           _timeSupplied = DateTime( _targetYear, _targetMonth, 1, _timeSupplied.hour, _timeSupplied.minute ) ;        
         } 
         // else this is a an all Day event - specify new time Supplied DateTime 
@@ -251,14 +282,14 @@ class ReminderCreator{
         }
         ignoreTokensAtPosition.add(_index + 1);
         // required so that next token is used for note
-        hasTimeBeenIdentified = true;
+        hasStartDateBeenIdentified = true;
         return; 
       }
       else if ( _nextTokenUC == 'YEAR' ){
         // for next year - easy - set 1st of Jan and return 
 
         // use the supplied time if already defined 
-        if ( hasTimeBeenIdentified ) { 
+        if ( hasStartTimeBeenIdentified ) { 
           _timeSupplied = DateTime( _tempNow.year + 1, 1, 1, _timeSupplied.hour, _timeSupplied.minute);
 
         }
@@ -269,7 +300,7 @@ class ReminderCreator{
         }
         ignoreTokensAtPosition.add(_index + 1);
         // required so that next token is used for note
-        hasTimeBeenIdentified = true;
+        hasStartDateBeenIdentified = true;
         return; 
       }
       else if ( AppConstants.monthsShortToNumber.containsKey( _nextTokenUC ) || AppConstants.monthsToNumber.containsKey( _nextTokenUC ) ) {
@@ -281,15 +312,14 @@ class ReminderCreator{
           _yearToUse++; 
         }
 
-        if ( hasTimeBeenIdentified ) { 
+        if ( hasStartTimeBeenIdentified ) { 
           _timeSupplied = DateTime( _yearToUse, _specifiedMonth, 1, _timeSupplied.hour, _timeSupplied.minute ); 
         }
         else {
           _timeSupplied = DateTime( _yearToUse, _specifiedMonth, 1 ); 
-          isAllDayEntry = true;
-          hasTimeBeenIdentified = true; 
-
+          isAllDayEntry = true; 
         }
+        hasStartDateBeenIdentified = true;
 
         ignoreTokensAtPosition.add( _index + 1 );
         return;
@@ -324,7 +354,7 @@ class ReminderCreator{
       DateTime _temp = _tempNow.add(Duration(days: dayDiff));
 
       // if time was already identified and this is not a weekend, use it    
-      if ( hasTimeBeenIdentified && !isWeekendPeriodAllDay) { 
+      if ( hasStartTimeBeenIdentified && !isWeekendPeriodAllDay) { 
         _timeSupplied = DateTime( _temp.year, _temp.month, _temp.day, _timeSupplied.hour, _timeSupplied.minute ) ; 
         
       } 
@@ -337,9 +367,9 @@ class ReminderCreator{
         }
 
         isAllDayEntry = true;
-        // required so that next token is used for note
-        hasTimeBeenIdentified = true; 
       }
+      // required so that next token is used for note
+      hasStartDateBeenIdentified = true; 
     }
 
   }
@@ -468,14 +498,15 @@ class ReminderCreator{
           }
         }
 
-        if (hasTimeBeenIdentified){ 
+        if ( hasStartTimeBeenIdentified ){ 
           _timeSupplied = DateTime( _yearToUse, _monthToUse, _dayToUse, _timeSupplied.hour, _timeSupplied.minute); 
         }
         else {
           _timeSupplied = DateTime( _yearToUse, _monthToUse, _dayToUse );
-          hasTimeBeenIdentified = true;
           isAllDayEntry = true; 
         }
+        hasStartDateBeenIdentified = true;
+
         ignoreTokensAtPosition.add(_index); 
 
       }
@@ -502,7 +533,8 @@ class ReminderCreator{
       }
     }
  
-    hasTimeBeenIdentified = false;
+    hasStartTimeBeenIdentified = false;
+    hasStartDateBeenIdentified = false; 
 
     suppliedTargetTimeIndex = -1;
     suppliedTargetUSIndex = -1;
@@ -525,9 +557,9 @@ class ReminderCreator{
       isThisDueTimeToken = false; 
 
       // if it's one of the 'at HHMM' supported combos
-      if ( AppConstants.timePrequel.contains( _tokenUC ) && isNextTokenTime( i ) ) {
+      if ( AppConstants.timePrequel.contains( _tokenUC ) && isNextTokenTime( i ) && !hasStartTimeBeenIdentified ) {
         isThisDueTimeToken = true;
-        hasTimeBeenIdentified = true;
+        hasStartTimeBeenIdentified = true;
 
         ignoreTokensAtPosition.add( i + 1 );
 
@@ -588,17 +620,21 @@ class ReminderCreator{
         addIdentifiedTimeToStartDateTime( _hours, _minutes );
 
       }
+
       // if it's a numeric token and it wasn't processed earlier 
+      // Boil egg 5
+      // Birthday 1 Jan 1980 
       else if ( StringParserUtilities.isValidInteger( _tokens[i] ) && int.parse( _tokens[i] ) > 0 && suppliedYearIndex != i ) {
 
         // either an integer (for some unit or mm for month)
-        isThisDueTimeToken = true;
 
         // identify now if there is at least one more token and it is a month literal and process it accordingly
-        if( _tokens.length - (i + 1) > 0 
+        if( _tokens.length - (i + 1) > 0 && !hasStartDateBeenIdentified
                   && ( AppConstants.monthsShortToNumber.containsKey( _tokens[i+1].toUpperCase() ) 
                       || AppConstants.monthsToNumber.containsKey( _tokens[i+1].toUpperCase() ) ) 
                   ) {
+
+          isThisDueTimeToken = true;
 
           int _specifiedMonth = AppConstants.monthsShortToNumber.containsKey( _tokens[i+1].toUpperCase() ) ?
                                   ( AppConstants.monthsShortToNumber[ _tokens[i+1].toUpperCase() ] ) as int
@@ -636,8 +672,9 @@ class ReminderCreator{
           }
 
           // if time was already identified, use it
-          if ( hasTimeBeenIdentified) { 
+          if ( hasStartTimeBeenIdentified ) { 
             _timeSupplied = DateTime( _yearToUse, _specifiedMonth, _specifiedDay, _timeSupplied.hour, _timeSupplied.minute ) ; 
+            hasStartDateBeenIdentified = true;
             
           } 
           // else this is a an all Day event - specify new time Supplied DateTime 
@@ -645,32 +682,148 @@ class ReminderCreator{
             _timeSupplied = DateTime( _yearToUse, _specifiedMonth, _specifiedDay ) ; 
             isAllDayEntry = true;
             // required so that next token is used for note
-            hasTimeBeenIdentified = true; 
+            hasStartDateBeenIdentified = true; 
           }        
 
         }
         else {
-          // default duration unit is minutes 
-          _dur = Duration( minutes: int.parse( _tokens[i] ) ) ;
+          // only process the numeric value if a start time has not already been set
+          if ( !hasStartTimeBeenIdentified ) {
+            isThisDueTimeToken = true;
 
-          if ( _tokens.length == 1) {
-            // If the number is the only item in the list, set the default description for non-supplied ones 
-            desc = AppConstants.defaultEmptyDescription;
+            if ( _tokens.length == 1) {
+              // If the number is the only item in the list, set the default description for non-supplied ones 
+              desc = AppConstants.defaultEmptyDescription;
+            }
+            else if (desc.endsWith(' in')){
+              desc = desc.substring(0 , desc.length - 3);
+            }
+
+            isAllDayEntry = false;
+
+            suppliedTargetTimeIndex = i; 
+
+            bool isUnitSupplied = false;
+
+            // the token after the numeric value for the reminder might be a time unit (singular or plural)
+            // If yes, set it
+
+            // if this is the adjacent following token from the numeric count, then this might be a time unit
+            if( _tokens.length - (i + 1) > 0) {
+
+              String _unit = _tokens[i+1].toUpperCase();
+              // if not in plural, convert it as the list contains the units in plural
+              if ( !_unit.endsWith('S')){
+                _unit = _unit + 'S';
+              }
+
+              // check if it's a time unit
+              if ( AppConstants.timeUnits.contains( _unit ) ){
+                isUnitSupplied = true;
+                                
+                // BINGO!!! Dealing with unit literal 
+
+                int _inputValue = int.parse( _tokens[i]) ;
+
+                switch ( _unit ) {
+                  case 'MINUTES': 
+                    _dur = Duration( minutes: _inputValue  ) ;
+
+                    // save this info so that time won't be processed
+                    specialSuppliedUnitProcessed = true;
+                    hasStartTimeBeenIdentified = true;
+                    ignoreTokensAtPosition.add( i + 1 );
+                    
+                    break;
+
+                  case 'HOURS':
+                    _dur = Duration( hours: _inputValue ) ;
+
+                    // save this info so that time won't be processed
+                    specialSuppliedUnitProcessed = true;
+                    hasStartTimeBeenIdentified = true; 
+                    ignoreTokensAtPosition.add( i + 1 );
+                    break;
+
+                  case 'DAYS':
+                    _dur = Duration( days: _inputValue  ) ;
+                    if (!hasStartTimeBeenIdentified) {
+                      isAllDayEntry = true;
+                    }
+                    hasStartDateBeenIdentified = true; 
+                    ignoreTokensAtPosition.add( i + 1 );
+                    break;
+
+                  case 'WEEKS':
+                    _dur = Duration( days: _inputValue * 7 ) ;
+                    if (!hasStartTimeBeenIdentified) {
+                      isAllDayEntry = true;
+                    }
+                    hasStartDateBeenIdentified = true;
+                    ignoreTokensAtPosition.add( i + 1 );
+                    break;
+
+                  case 'MONTHS':
+                    _dur = Duration( days: _inputValue * AppConstants.defaultDaysPerMonth ) ;
+                    if (!hasStartTimeBeenIdentified) {
+                      isAllDayEntry = true;
+                    }
+                    hasStartDateBeenIdentified = true;
+                    ignoreTokensAtPosition.add( i + 1 );
+                    break;
+
+                  case 'YEARS':
+                    int leapDays = extraDaysForFinalYear(_inputValue); 
+
+                    _dur = Duration( days: ( _inputValue * AppConstants.daysPerYear ) + leapDays , 
+                                    hours: 0 );
+
+                    if (!hasStartTimeBeenIdentified) {
+                      isAllDayEntry = true;
+                    }
+                    hasStartDateBeenIdentified = true; 
+                    ignoreTokensAtPosition.add( i + 1 );
+
+                    break;
+
+                  default: 
+                  // it was already set in minutes on the original assignment, so do nothing here. 
+
+                } // SWITCH end
+
+              } // end of time unit processing 
+
+            }
+
+            // if a unit was not supplied, then default to minutes
+            if ( !isUnitSupplied ) {
+              // default case - minimal input - one integer
+              hasStartTimeBeenIdentified = true; 
+              isAllDayEntry = false; 
+              _dur = Duration( minutes: int.parse( _tokens[i] ) ) ;
+            }
+
+            _timeSupplied = _tempNow.add( _dur );
+
+            if (desc.endsWith(' in')){
+              desc = desc.substring(0 , desc.length - 3);
+            }
+
+            // if all day event -  reset the hours and minutes
+            if ( isAllDayEntry ) {
+              _timeSupplied = DateTime( _timeSupplied.year, _timeSupplied.month, _timeSupplied.day, 0, 0 );
+            }
+            else{
+              // strip out microseconds 
+              _timeSupplied = DateTime( _timeSupplied.year, _timeSupplied.month, _timeSupplied.day, _timeSupplied.hour, _timeSupplied.minute );
+                
+            }
+
           }
-          else if (desc.endsWith(' in')){
-            desc = desc.substring(0 , desc.length - 3);
-          }
-
-          isAllDayEntry = false;
-
-          // default case - minimal input - one integer
-          hasTimeBeenIdentified = true;
-          suppliedTargetTimeIndex = i; 
-
         }
       }
       // if it's not a weekend period, check if it's a time token : numbers US style
-      else if ( !isWeekendPeriodAllDay && _tokenUC.contains(':') && !specialSuppliedUnitProcessed) {
+      else if ( !isWeekendPeriodAllDay && _tokenUC.contains(':') && !specialSuppliedUnitProcessed && !hasStartTimeBeenIdentified) {
 
         // If it ends with am or pm (US style), save the info and remove from string
         int pmHoursToBeAdded = 0 ; 
@@ -709,7 +862,7 @@ class ReminderCreator{
             addIdentifiedTimeToStartDateTime( int.parse( _timeTokens[0] ) + pmHoursToBeAdded, int.parse( _timeTokens[1] ) ); 
 
             isThisDueTimeToken = true;
-            hasTimeBeenIdentified = true;
+            hasStartTimeBeenIdentified = true;
 
             if ( _tokens.length == 1) {
               // If the number is the only item in the list, set the default description for non-supplied ones 
@@ -728,13 +881,14 @@ class ReminderCreator{
         
       }
       // check if it's a date relevant to today that hasn't been already processed 
-      else if ( (!( ignoreTokensAtPosition.contains(i) )) && ( AppConstants.specialOperators.contains( _tokenUC ) 
+      else if ( !hasStartDateBeenIdentified && 
+                (!( ignoreTokensAtPosition.contains(i) )) && ( AppConstants.specialOperators.contains( _tokenUC ) 
                 || AppConstants.specialShortOperators.contains( _tokenUC ) || AppConstants.weekDaysShortToInt.containsKey( _tokenUC )
                  || AppConstants.weekDaysToInt.containsKey( _tokenUC ) || AppConstants.monthsToNumber.containsKey( _tokenUC ) 
                  || AppConstants.monthsShortToNumber.containsKey( _tokenUC ) ) ) {
         updateValuesBasedOnRelevantDate( i );
       } 
-      else if ( _tokenUC.contains( '/' ) ) {
+      else if ( _tokenUC.contains( '/' ) && !hasStartDateBeenIdentified ) {
         // check for dd/mm or mm/dd format
         processComboWithSlash( i );
       }
@@ -763,116 +917,24 @@ class ReminderCreator{
         }         
         else { 
 
-          // Only add to the description if the target DateTime hasn't been identified, 
+          // Only add to the description if the target Date and Time hasn't been identified, 
           // as the string after the  duration will be used as note 
-          if ( !hasTimeBeenIdentified ) {
+          if ( !hasStartDateBeenIdentified && !hasStartTimeBeenIdentified ) {
             desc = '$desc ${_tokens[i]}';
           }
           else {
 
-            /// By default process the current token as note, unless it's part of the target timestamp duration definition
-            var _useThisToken = true; 
-
-            // the token after the numeric value for the reminder might be a time unit (singular or plural)
-            // If yes, set it
-
-            // if this is the adjacent following token from the numeric count, then this might be a time unit
-            if ( suppliedTargetTimeIndex + 1 == i ){
-              String _unit = _tokens[i].toUpperCase();
-              // if not in plural, convert it as the list contains the units in plural
-              if ( !_unit.endsWith('S')){
-                _unit = _unit + 'S';
-              }
-
-              // check if it's a time unit
-              if ( AppConstants.timeUnits.contains( _unit ) ){
-                                
-                // BINGO!!! Dealing with unit literal 
-
-                _useThisToken = false; 
-
-                int _inputValue = int.parse( _tokens[i-1]) ;
-
-                switch ( _unit ) {
-                  case 'MINUTES': 
-                    // this is the default time unit - user didn't have to set it but they did. Ignore it. 
-
-                    // save this info so that time won't be processed
-                    specialSuppliedUnitProcessed = true;
-                    
-                    break;
-
-                  case 'HOURS':
-                    _dur = Duration( hours: _inputValue  ) ;
-
-                    // save this info so that time won't be processed
-                    specialSuppliedUnitProcessed = true;
-                    
-                    break;
-
-                  case 'DAYS':
-                    _dur = Duration( days: _inputValue  ) ;
-                    isAllDayEntry = true;
-                    break;
-
-                  case 'WEEKS':
-                    _dur = Duration( days: _inputValue * 7 ) ;
-                    isAllDayEntry = true;
-                    break;
-
-                  case 'MONTHS':
-                    _dur = Duration( days: _inputValue * AppConstants.defaultDaysPerMonth ) ;
-                    isAllDayEntry = true;
-                    break;
-
-                  case 'YEARS':
-
-                    _dur = Duration( days: _inputValue * AppConstants.daysPerYear, 
-                                    hours: 0 );
-
-                    isAllDayEntry = true;
-                    break;
-
-                  default: 
-                  // it was already set in minutes on the original assignment, so do nothing here. 
-
-                } // SWITCH end
-
-                _timeSupplied = _tempNow.add(_dur);
-
-                if (desc.endsWith(' in')){
-                  desc = desc.substring(0 , desc.length - 3);
-                }
-
-                // if all day event -  reset the hours and minutes
-                if ( isAllDayEntry ) {
-                  _timeSupplied = DateTime(_timeSupplied.year, _timeSupplied.month, _timeSupplied.day, 0, 0 );
-                }else{
-                  // strip out microseconds 
-                  _timeSupplied = DateTime(_timeSupplied.year, _timeSupplied.month, _timeSupplied.day, 
-                        _timeSupplied.hour, _timeSupplied.minute );
-                
-                }
-
-              } // end of time unit processing 
-
+            // Use it as note
+            // Initialise note with the first token after duration
+            if (note == '') { 
+              note = _tokens[i];
             }
-
-            if ( _useThisToken ) { 
-
-                // After we are done with the duration / due date (and description), and there is more text,
-                // then use it as note
-                // Initialise note with the first token after duration
-                if (note == '') { 
-                  note = _tokens[i];
-                }
-                else {
-                  // concatenate with the existing note value 
-                  note = '$note ${_tokens[i]}';
-                }
-              }
-            
+            else {
+              // concatenate with the existing note value 
+              note = '$note ${_tokens[i]}';
+            }
           }
+        
         }
       } // end of processing a string token 
 
